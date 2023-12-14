@@ -37,12 +37,14 @@ def draw_contours(thresholded,image):
     return image
     
 
-   
-for i in range(86,88):
+for i in range(1,20):
     filename = 'Vehicles/{:04d}.jpg'.format(i)
 #filename = 'Vehicles/0004.jpg'
     image = cv2.imread(filename)
     image = cv2.bilateralFilter(image, d=5, sigmaColor=80, sigmaSpace=80)
+    #resize image to 1024 width
+    # scale_factor = 1024 / image.shape[1]
+    # image = cv2.resize(image, (0, 0), fx=scale_factor, fy=scale_factor)
     gray_1 = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     clahe = cv2.createCLAHE(clipLimit=2, tileGridSize=(15, 10))
@@ -50,7 +52,7 @@ for i in range(86,88):
 
     #plot_images(gray_1,gray,"gray","after histogramequalization")
         
-    radius = 12
+    radius = 15
     disk_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2*radius+1, 2*radius+1), (radius, radius))
     opened_image = cv2.morphologyEx(gray, cv2.MORPH_OPEN, disk_kernel)
 
@@ -58,7 +60,7 @@ for i in range(86,88):
     #plot_images(gray,subtracted_image,"gray","Remainder of opening")
     """ perform a blackhat morphological operation to reveal dark characters (letters, digits, and symbols)
         against light backgrounds (the license plate itself)"""
-    rectKern = cv2.getStructuringElement(cv2.MORPH_RECT, (11, 5))
+    rectKern = cv2.getStructuringElement(cv2.MORPH_RECT, (21, 7))
     blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, rectKern)
     #plot_images(image,blackhat,"image","blackhat")
 
@@ -66,7 +68,7 @@ for i in range(86,88):
 
     """ find regions in the image that are light and may contain license plate characters
     find regions in the image that are light and may contain license plate characters """
-    squareKern = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    squareKern = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 10))
     light = cv2.morphologyEx(subtracted_image, cv2.MORPH_CLOSE, squareKern)
     light = cv2.threshold(light, 0, 255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)[1]
     #plot_images(gray,light,"gray","white in image")
@@ -75,12 +77,11 @@ for i in range(86,88):
     """ detect edges in the image and emphasize the boundaries of 
     the characters in the license plate"""
     gradX = cv2.Sobel(blackhat, ddepth=cv2.CV_32F,dx=1, dy=0, ksize=-1)
+    #gradX= cv2.Canny(blackhat, 20,130 )
     gradX = np.absolute(gradX)
     (minVal, maxVal) = (np.min(gradX), np.max(gradX))
     gradX = 255 * ((gradX - minVal) / (maxVal - minVal))
     gradX = gradX.astype("uint8")
-    #gradX= cv2.Canny(blackhat, 60,120 )
-
 
     #plot_images(gray,gradX,"gray"," x-axis edges")
     """smooth to group the regions that may contain boundaries to license plate characters"""
@@ -96,7 +97,7 @@ for i in range(86,88):
     """
     thresh = cv2.erode(thresh, None, iterations=2)   #Ziad: iterations=5
     thresh = cv2.dilate(thresh, None, iterations=2)
-
+    
     #plot_images(gray,thresh,"gray","thresholded after erode dilate")
 
     """
@@ -124,8 +125,8 @@ for i in range(86,88):
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:20]
-    contour_image = np.zeros_like(image)
-    cv2.drawContours(contour_image, cnts, -1, (255, 0, 0), 3)
+    contour_image = image.copy()
+    #cv2.drawContours(contour_image, cnts, -1, (255, 0, 0), 3)
     #plot_images(image, contour_image, "image", "all contours")
 
 
@@ -136,6 +137,7 @@ for i in range(86,88):
     for c in cnts:
         area = cv2.contourArea(c)
         (x, y, w, h) = cv2.boundingRect(c)
+        cv2.rectangle(contour_image, (x, y), (x + w, y + h), (0, 0, 255), 2)
         area_ratio = area / (w*h)
         ar = w / float(h)
         if minAR <= ar <= maxAR and 10<= h <=54  and minArea <= w*h <= maxArea:
@@ -145,8 +147,13 @@ for i in range(86,88):
             main_contours.append(c)
     #main_contours = sorted(main_contours, key=cv2.contourArea, reverse=True)[:5]
     #print("main_contours size",len(main_contours))
-    cv2.drawContours(image,main_contours, -1, (0, 255, 0), 3)
-    plot_images(image, contour_image, "image with contours matching the conditions", "all contours")
+    img_copy = image.copy()
+    for c in main_contours:
+        area = cv2.contourArea(c)
+        (x, y, w, h) = cv2.boundingRect(c)
+        cv2.rectangle(img_copy, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    plot_images(image,contour_image,"Original Image", "All Contours")
+    plot_images(image, img_copy, "Original Image", "Contours matching the aspect ratio")
     ######################################################################
     most_rectangular_contour = None
     min_diff = float('inf')
@@ -162,7 +169,7 @@ for i in range(86,88):
         # Calculate the aspect ratio of the bounding rectangle
         ar = w / float(h)
         # Calculate the difference between the aspect ratio of the bounding rectangle and the aspect ratio of a perfect rectangle
-        diff = abs(ar -4)
+        diff = abs(ar -3.5)
         # If this difference is smaller than the smallest difference we've seen so far, update the most rectangular contour and the smallest difference
         if diff < min_diff:
             most_rectangular_contour = c
@@ -175,12 +182,6 @@ for i in range(86,88):
     licensePlate = gray[y_final:y_final + h_final, x_final:x_final + w_final]
     # Now most_rectangular_contour is the contour with the most rectangular shape
     ######################################################################
-    image = cv2.imread(filename)
-    image = cv2.bilateralFilter(image, d=5, sigmaColor=80, sigmaSpace=80)
-    cv2.drawContours(image,last_contour, -1, (0, 255, 0), 3)
-    #plot_images(image, contour_image, "image with most rectangular contour", "all contours")
-    #plot_images(image,image,"image","licensePlate")
-
     if (licensePlate != None).any():
         plot_images(image,licensePlate,"image","licensePlate")
 ##roi=clear_border(roi)
