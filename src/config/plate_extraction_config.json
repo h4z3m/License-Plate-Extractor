@@ -1,0 +1,9 @@
+{
+    "max_aspect_ratio": 1.5,
+    "min_aspect_ratio": 0.5,
+    "max_area": 100000,
+    "min_area": 100,
+    "min_height": 10,
+    "max_height": 55,
+    "perfect_aspect_ratio": 3.5
+}
