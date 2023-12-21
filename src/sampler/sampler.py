@@ -1,5 +1,8 @@
 import sys
 import cv2
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Sampler:
@@ -18,6 +21,7 @@ class Sampler:
         self.video_path = video_path
         self.rate = 1 / target_frames
         self.current_frame = 0
+        logging.debug(f"Initialized sampler with {target_frames} frames")
 
     def sample(self):
         """
@@ -44,5 +48,5 @@ class Sampler:
                 video.release()
                 return None
             self.current_frame += self.rate
-
+            logging.debug(f"Extracted frame {self.current_frame}")
             return frame
