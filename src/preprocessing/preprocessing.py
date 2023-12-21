@@ -3,9 +3,26 @@ import cv2
 from scipy.signal import convolve2d
 
 
-def sobel(img: np.ndarray, threshold: int = 0, dir="both"):
-    hx = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
-    hy = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+def sobel(
+    img: np.ndarray,
+    threshold: int = 0,
+    dir="both",
+    hx=np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]),
+    hy=np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]]),
+):
+    """
+    Calculates the Sobel filter of the input image.
+
+    Parameters:
+        img (np.ndarray): The input image.
+        threshold (int, optional): The threshold value. Defaults to 0.
+        dir (str, optional): The direction of the filter. Can be "both", "horizontal", or "vertical". Defaults to "both".
+        hx (np.ndarray, optional): The horizontal Sobel kernel. Defaults to np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]).
+        hy (np.ndarray, optional): The vertical Sobel kernel. Defaults to np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]]).
+
+    Returns:
+        np.ndarray: The filtered image.
+    """
     final_image: np.ndarray
     if dir == "both":
         horizontal = convolve2d(img, hy)
@@ -122,24 +139,15 @@ def histogram_equalization(image: np.ndarray):
     Returns:
         np.ndarray: The histogram equalized image as a NumPy array.
     """
-    histogram = [0] * 256
-    for i in range((image.shape[0])):
-        for j in range(image.shape[1]):
-            histogram[image[i, j]] += 1
-    H_c = [0] * 256
-    H_c[0] = histogram[0]
+    histogram = np.histogram(image.flatten(), bins=256, range=[0, 256])[0]
 
-    for i in range(1, 256):
-        H_c[i] = H_c[i - 1] + histogram[i]
+    H_c = np.cumsum(histogram)
 
     max = np.max(image)
     q = np.array(
         [round((max - 1) * val / (image.shape[0] * image.shape[1])) for val in H_c]
     )
-    copy = image.copy()
-    for i in range(image.shape[0]):
-        for j in range(image.shape[1]):
-            copy[i, j] = q[image[i, j]]
+    copy = q[image.flatten()].reshape(image.shape)
     return copy
 
 
