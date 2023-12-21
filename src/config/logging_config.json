@@ -1,0 +1,4 @@
+{
+    "save_log_to_file": false,
+    "log_path": "./src/logs/"
+}
