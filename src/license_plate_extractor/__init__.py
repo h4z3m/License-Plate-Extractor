@@ -1,0 +1,1 @@
+import license_plate_extractor.license_plate_extractor as license_plate_extractor

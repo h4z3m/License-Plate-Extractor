@@ -1,10 +1,12 @@
 import json
-import logging
-
+from debug_logger.debug_logger import DebugLogger
 import cv2
 import imutils
+import numpy as np
+import utils.utils as utils
+import logging
 
-logger = logging.getLogger(__name__)
+logger = DebugLogger(name="logger")
 
 # Load configuration from JSON file
 with open("./src/config/plate_extraction_config.json") as config_file:
@@ -18,16 +20,20 @@ minArea = module_config.get("min_area", 600)
 maxArea = module_config.get("max_area", 10_000)
 minHeight = module_config.get("min_height", 10)
 maxHeight = module_config.get("max_height", 55)
+colorRegionToPlateHeightRatio = module_config.get(
+    "color_region_to_plate_height_ratio", 0.65
+)
 
-logging.debug(
-    f"""
-    minAr: {minAR}\n
-    maxAr: {maxAR}\n
-    perfectAr: {perfectAR}\n
-    minArea: {minArea}\n
-    maxArea: {maxArea}\n
-    minHeight: {minHeight}\n
+logger.debug(
+    f""" Loaded plate extraction config
+    minAr: {minAR}
+    maxAr: {maxAR}
+    perfectAr: {perfectAR}
+    minArea: {minArea}
+    maxArea: {maxArea}
+    minHeight: {minHeight}
     maxHeight: {maxHeight}
+    colorRegionToPlateHeightRatio: {colorRegionToPlateHeightRatio}
     """
 )
 
@@ -50,7 +56,7 @@ def get_contours(image, top=1, sort_fn=cv2.contourArea):
     )
     contours = imutils.grab_contours(contours)
     contours = sorted(contours, key=sort_fn, reverse=True)[:top]
-    logging.debug(f"Found {len(contours)} contours")
+    logger.debug(f"Found {len(contours)} contours")
     return contours
 
 
@@ -75,8 +81,40 @@ def get_candidate_contours(contours):
             and minArea <= w * h <= maxArea
         ):
             main_contours.append(c)
-    logging.debug(f"Found {len(main_contours)} candidate contours")
+    logger.debug(f"Found {len(main_contours)} candidate contours")
     return main_contours
+
+
+def extract_color_region(original_image, x, y, w, h):
+    """
+    Extracts the color region from the original image based on the given coordinates and dimensions.
+
+    Args:
+        original_image (numpy.ndarray): The original image from which to extract the colored region.
+        x (int): The x-coordinate of the top-left corner of the region.
+        y (int): The y-coordinate of the top-left corner of the region.
+        w (int): The width of the region.
+        h (int): The height of the region.
+
+    Returns:
+        Tuple[int, int, int]: The indices of the maximum value in the histogram calculated from the colored region.
+    """
+    colored_region = original_image[
+        y - round(colorRegionToPlateHeightRatio * h) : y, x : x + w
+    ]
+    # Calculate the histogram
+    hist = cv2.calcHist(
+        [colored_region], [0, 1, 2], None, [256, 256, 256], [0, 256, 0, 256, 0, 256]
+    )
+
+    # Find the indices of the maximum value in the histogram
+    max_indices = np.unravel_index(hist.argmax(), hist.shape)
+    logger.debug(f"Max indices: {max_indices}")
+    if logger.getEffectiveLevel() == logging.DEBUG:
+        block = np.ones((10, 10, 3), np.uint8)
+        block[...] = max_indices
+        utils.plot_image(block)
+    return max_indices
 
 
 def __perfectAR_get_license_plate(gray, contours: list):
