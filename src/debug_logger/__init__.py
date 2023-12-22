@@ -1,1 +1,1 @@
-import debug_logger
+import debug_logger.debug_logger as debug_logger

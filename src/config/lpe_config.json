@@ -1,0 +1,33 @@
+{
+    "bilateral_filter": {
+        "d": 9,
+        "sigmaColor": 80,
+        "sigmaSpace": 80
+    },
+    "histogram_equalization": {
+        "clipLimit": 2.0,
+        "tileGridSize": [
+            8,
+            8
+        ]
+    },
+    "disk_kernel_radius": 16,
+    "rect1_kernel_size": [
+        12,
+        6
+    ],
+    "rect2_kernel_size": [
+        23,
+        6
+    ],
+    "rect3_kernel_size": [
+        15,
+        5
+    ],
+    "rect4_kernel_size": [
+        18,
+        5
+    ],
+    "square_kernel_size": 3,
+    "sobel_kernel_size": 31
+}

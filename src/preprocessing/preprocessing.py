@@ -1,14 +1,27 @@
-import numpy as np
 import cv2
+import numpy as np
 from scipy.signal import convolve2d
+
+
+def __get_sobel_hx(ksize):
+    hx = np.zeros((ksize, ksize))
+    for i in range(ksize):
+        for j in range(ksize):
+            hx[i, j] = i / (i * i + j * j)
+    return hx
+
+
+def __get_sobel_hy(ksize):
+    return __get_sobel_hx(ksize).T
 
 
 def sobel(
     img: np.ndarray,
     threshold: int = 0,
     dir="both",
-    hx=np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]),
-    hy=np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]]),
+    ksize=5,
+    hx=None,
+    hy=None,
 ):
     """
     Calculates the Sobel filter of the input image.
@@ -23,15 +36,18 @@ def sobel(
     Returns:
         np.ndarray: The filtered image.
     """
+    if ksize % 2 == 0:
+        raise ValueError("ksize must be an odd number")
+
     final_image: np.ndarray
     if dir == "both":
-        horizontal = convolve2d(img, hy)
-        vertical = convolve2d(img, hx)
-        final_image = np.hypot(horizontal, vertical)
+        horizontal = convolve2d(img, __get_sobel_hy(ksize), mode="same")
+        vertical = convolve2d(img, __get_sobel_hx(ksize), mode="same")
+        final_image = np.hypot(horizontal, vertical, dtype=np.float64)
     elif dir == "horizontal":
-        final_image = convolve2d(img, hy)
+        final_image = convolve2d(img, __get_sobel_hy(ksize), mode="same")
     elif dir == "vertical":
-        final_image = convolve2d(img, hx)
+        final_image = convolve2d(img, __get_sobel_hx(ksize), mode="same")
     else:
         raise ValueError(f"dir must be either 'both', 'horizontal' or 'vertical'")
     removed = np.where(np.abs(final_image) * 255 < threshold)
@@ -127,6 +143,27 @@ def gamma_correction(image: np.ndarray, c, gamma):
         np.ndarray: The gamma-corrected image.
     """
     return c * (image.copy() ** gamma)
+
+
+def normalize_edges(edges):
+    """
+    Normalize the given edges array.
+
+    Parameters:
+    - edges (numpy.ndarray): The edges array to be normalized.
+
+    Returns:
+    - edges (numpy.ndarray): The normalized edges array.
+
+    This function takes an array of edges and returns a normalized version of the array.
+
+    """
+    edges = edges.copy()
+    edges = np.absolute(edges)
+    (minVal, maxVal) = (np.min(edges), np.max(edges))
+    edges = 255 * ((edges - minVal) / (maxVal - minVal))
+    edges = edges.astype("uint8")
+    return edges
 
 
 def histogram_equalization(image: np.ndarray):

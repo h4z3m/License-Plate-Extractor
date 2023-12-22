@@ -11,7 +11,7 @@ from utils.utils import create_directory
 
 
 def main(image_path):
-    from license_plate_extractor.license_plate_extractor import LicensePlateExtractor
+    from license_plate_extractor import LicensePlateExtractor
 
     lpe = LicensePlateExtractor(image_path)
 
