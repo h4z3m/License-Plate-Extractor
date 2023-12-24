@@ -16,7 +16,7 @@ from plate_extraction.plate_extraction import (
 )
 from preprocessing.preprocessing import normalize_edges
 from utils.utils import draw_contours
-from utils.utils import plot_side_by_side_images as debug_plot_images
+from utils.utils import debug_plot_images
 
 logger = DebugLogger(name="logger")
 
@@ -51,7 +51,22 @@ class LPE_Config(object):
             return LPE_Config(**config_data)
 
     def __str__(self) -> str:
-        return str(self.__dict__)
+        return f"""
+    Bilateral Filter:
+        d: {self.bilateral_filter.get("d", "Not set")}
+        sigmaColor: {self.bilateral_filter.get("sigmaColor", "Not set")}
+        sigmaSpace: {self.bilateral_filter.get("sigmaSpace", "Not set")}
+    Histogram Equalization:
+        clipLimit: {self.histogram_equalization.get("clipLimit", "Not set")}
+        tileGridSize: {self.histogram_equalization.get("tileGridSize", "Not set")}
+    Disk Kernel radius: {self.disk_kernel_radius}
+    Rect1 Kernel size: {self.rect1_kernel_size}
+    Rect2 Kernel size: {self.rect2_kernel_size}
+    Rect3 Kernel size: {self.rect3_kernel_size}
+    Rect4 Kernel size: {self.rect4_kernel_size}
+    Square Kernel size: {self.square_kernel_size}
+    Sobel Kernel size: {self.sobel_kernel_size}
+    Reference Image Path: {self.reference_image_path}"""
 
 
 class LicensePlateExtractor:

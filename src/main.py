@@ -13,13 +13,13 @@ from utils.utils import create_directory
 def main(dataset_path, lpe_config_path, pe_config_path, n, op_path):
     from license_plate_extractor import LicensePlateExtractor
 
-    with open("output.csv", "w", newline="") as file:
+    with open("output.csv", "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         field = ["image_name", "plate_type"]
         writer.writerow(field)
         LicensePlateExtractor.load_config(lpe_config_path, pe_config_path)
         # Loop on the first 100 images
-        for i in range(1, n):
+        for i in range(1200, 1301):
             filename = dataset_path + "/{:04d}.jpg".format(i)
             image, candidates, annotated_image = LicensePlateExtractor.extract_plate(
                 filename
@@ -30,7 +30,8 @@ def main(dataset_path, lpe_config_path, pe_config_path, n, op_path):
             if len(candidates) >= 2:
                 cv2.imwrite(op_path + "/{:04d}_0.jpg".format(i), candidates[0][0])
                 cv2.imwrite(op_path + "/{:04d}_1.jpg".format(i), candidates[1][0])
-
+                print(*candidates[0][3])
+                print(*candidates[1][3])
                 candidate_1_type = LicensePlateExtractor.extract_type(
                     original_image, *candidates[0][3]
                 )
@@ -115,7 +116,7 @@ if __name__ == "__main__":
         log_filename = datetime.datetime.now().strftime("%Y-%m-%d %H %M %S") + ".log"
 
     logger = debug_logger.DebugLogger(
-        name="logger", level=logging.DEBUG if debug else logging.INFO
+        name="logger", level=logging.DEBUG if debug else logging.ERROR
     )
 
     main(dataset_path, lpe_config_path, pe_config_path, n, op_path)

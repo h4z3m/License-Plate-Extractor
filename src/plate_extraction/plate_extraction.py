@@ -252,6 +252,8 @@ def extract_color_region(original_image, x, y, w, h):
     colored_region = original_image[
         y - round(colorRegionToPlateHeightRatio * h) : y, x : x + w
     ]
+    if colored_region.shape[0] == 0 or colored_region.shape[1] == 0:
+        return (0, 0, 0)
     colored_region = cv2.GaussianBlur(colored_region, (5, 5), 0)
     # Calculate the histogram
     hist = cv2.calcHist(
