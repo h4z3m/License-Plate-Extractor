@@ -8,39 +8,54 @@ import logging
 from typing import Tuple, List
 
 logger = DebugLogger(name="logger")
+logger.setLevel(logging.ERROR)
 
-# Load configuration from JSON file
-with open("./config/plate_extraction_config.json") as config_file:
-    logger.debug("Loading plate extraction config")
-    module_config = json.load(config_file)
+minAR = None
+maxAR = None
+perfectAR = None
+minArea = None
+maxArea = None
+minHeight = None
+maxHeight = None
+minWidth = None
+maxWidth = None
+colorRegionToPlateHeightRatio = None
 
-minAR = module_config.get("min_aspect_ratio", 1.5)
-maxAR = module_config.get("max_aspect_ratio", 3.5)
-perfectAR = module_config.get("perfect_aspect_ratio", 3.5)
-minArea = module_config.get("min_area", 600)
-maxArea = module_config.get("max_area", 10_000)
-minHeight = module_config.get("min_height", 10)
-maxHeight = module_config.get("max_height", 55)
-minWidth = module_config.get("min_width", 10)
-maxWidth = module_config.get("max_width", 100)
-colorRegionToPlateHeightRatio = module_config.get(
-    "color_region_to_plate_height_ratio", 0.65
-)
 
-logger.debug(
-    f""" Loaded plate extraction config
-    minAr: {minAR}
-    maxAr: {maxAR}
-    perfectAr: {perfectAR}
-    minArea: {minArea}
-    maxArea: {maxArea}
-    minHeight: {minHeight}
-    maxHeight: {maxHeight}
-    minWidth: {minWidth}
-    maxWidth: {maxWidth}
-    colorRegionToPlateHeightRatio: {colorRegionToPlateHeightRatio}
-    """
-)
+def load_plate_extraction_config(pe_config_path):
+    # Load configuration from JSON file
+    with open(pe_config_path) as config_file:
+        logger.debug("Loading plate extraction config")
+        module_config = json.load(config_file)
+    global minAR, maxAR, perfectAR, minArea, maxArea, minHeight, maxHeight, minWidth, maxWidth, colorRegionToPlateHeightRatio
+    minAR = module_config.get("min_aspect_ratio", 1.5)
+    maxAR = module_config.get("max_aspect_ratio", 3.5)
+    perfectAR = module_config.get("perfect_aspect_ratio", 3.5)
+    minArea = module_config.get("min_area", 600)
+    maxArea = module_config.get("max_area", 10_000)
+    minHeight = module_config.get("min_height", 10)
+    maxHeight = module_config.get("max_height", 55)
+    minWidth = module_config.get("min_width", 10)
+    maxWidth = module_config.get("max_width", 100)
+    colorRegionToPlateHeightRatio = module_config.get(
+        "color_region_to_plate_height_ratio", 0.65
+    )
+
+    logger.debug(
+        f""" Loaded plate extraction config
+        minAr: {minAR}
+        maxAr: {maxAR}
+        perfectAr: {perfectAR}
+        minArea: {minArea}
+        maxArea: {maxArea}
+        minHeight: {minHeight}
+        maxHeight: {maxHeight}
+        minWidth: {minWidth}
+        maxWidth: {maxWidth}
+        colorRegionToPlateHeightRatio: {colorRegionToPlateHeightRatio}
+        """
+    )
+
 
 """""" """""" " Contour detection " """""" """"""
 
@@ -212,7 +227,7 @@ def hog_method_plate_detection(images_set, reference_features):
         # Calculate Euclidean distance
         distance = np.linalg.norm(reference_features - image_features)
         distances.append(distance)
-        logger.info(f"Distance: {distance}")
+        # logger.info(f"Distance: {distance}")
 
     nearest_indices = np.argsort(distances)[:2]
     nearest_images = [images_set[i] for i in nearest_indices]
@@ -237,6 +252,7 @@ def extract_color_region(original_image, x, y, w, h):
     colored_region = original_image[
         y - round(colorRegionToPlateHeightRatio * h) : y, x : x + w
     ]
+    colored_region = cv2.GaussianBlur(colored_region, (5, 5), 0)
     # Calculate the histogram
     hist = cv2.calcHist(
         [colored_region], [0, 1, 2], None, [256, 256, 256], [0, 256, 0, 256, 0, 256]
@@ -244,9 +260,11 @@ def extract_color_region(original_image, x, y, w, h):
 
     # Find the indices of the maximum value in the histogram
     max_indices = np.unravel_index(hist.argmax(), hist.shape)
-    logger.debug(f"Max indices: {max_indices}")
+    # max_indices = (max_indices[2], max_indices[1], max_indices[0])
+    logger.info(f"Max indices: {max_indices}")
     if logger.getEffectiveLevel() == logging.DEBUG:
         block = np.ones((10, 10, 3), np.uint8)
         block[...] = max_indices
         utils.plot_image(block)
+        utils.plot_image(colored_region)
     return max_indices
