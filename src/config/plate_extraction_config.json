@@ -5,8 +5,8 @@
     "max_area": 29000,
     "min_height": 14,
     "max_height": 55,
-    "min_width": 10,
+    "min_width": 55,
     "max_width": 100,
     "perfect_aspect_ratio": 3.5,
-    "color_region_to_plate_height_ratio": 0.65
+    "color_region_to_plate_height_ratio": 0.5
 }

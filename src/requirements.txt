@@ -1,1 +1,9 @@
+easyocr==1.7.1
+imutils==0.5.4
+matplotlib==3.8.2
+numpy==1.24.3
+numpy==1.25.1
 opencv_python==4.8.1.78
+opencv_python_headless==4.8.1.78
+scipy==1.11.4
+skimage==0.0

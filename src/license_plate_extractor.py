@@ -12,10 +12,11 @@ from plate_extraction.plate_extraction import (
     extract_color_region,
     get_contours,
     hog_method_plate_detection,
+    load_plate_extraction_config,
 )
 from preprocessing.preprocessing import normalize_edges
 from utils.utils import draw_contours
-from utils.utils import plot_side_by_side_images as plot_images
+from utils.utils import plot_side_by_side_images as debug_plot_images
 
 logger = DebugLogger(name="logger")
 
@@ -31,9 +32,20 @@ class LPE_Config(object):
     rect4_kernel_size: list
     square_kernel_size: int
     sobel_kernel_size: int
+    reference_image_path: str
 
     @staticmethod
     def load_from_json(filename):
+        """
+        Load configuration data from a JSON file.
+
+        Args:
+            filename (str): The path to the JSON file.
+
+        Returns:
+            LPE_Config: An instance of the LPE_Config class populated with the
+                        configuration data from the JSON file.
+        """
         with open(filename) as config_file:
             config_data = json.load(config_file)
             return LPE_Config(**config_data)
@@ -57,14 +69,18 @@ class LicensePlateExtractor:
     }
 
     @staticmethod
-    def load_config(config_path="./config/lpe_config.json"):
+    def load_config(
+        config_path="./config/lpe_config.json",
+        pe_config_path="./config/plate_extraction_config.json",
+    ):
         """
         Load the configuration file and initialize the LicensePlateExtractor class.
 
         :param config_path: (str) Path to the configuration file. Default is "./config/lpe_config.json".
         """
+        load_plate_extraction_config(pe_config_path)
         LicensePlateExtractor.__read_config(config_path)
-        reference_object = cv2.imread("./image_1.png")
+        reference_object = cv2.imread(LicensePlateExtractor.config.reference_image_path)
         reference_gray = cv2.cvtColor(reference_object, cv2.COLOR_BGR2GRAY)
         reference_gray = cv2.resize(reference_gray, (128, 128))
         hog = cv2.HOGDescriptor()
@@ -86,30 +102,19 @@ class LicensePlateExtractor:
         config = LicensePlateExtractor.config
         logger.info(f"Preprocess config: {config}")
         LicensePlateExtractor.rectKern = cv2.getStructuringElement(
-            cv2.MORPH_RECT,
-            (
-                config.rect1_kernel_size[0],
-                config.rect1_kernel_size[1],
-            ),
+            cv2.MORPH_RECT, (config.rect1_kernel_size[0], config.rect1_kernel_size[1])
         )
         LicensePlateExtractor.rectKern2 = cv2.getStructuringElement(
-            cv2.MORPH_RECT,
-            (
-                config.rect2_kernel_size[0],
-                config.rect2_kernel_size[1],
-            ),
+            cv2.MORPH_RECT, (config.rect2_kernel_size[0], config.rect2_kernel_size[1])
         )
         LicensePlateExtractor.rectKern3 = cv2.getStructuringElement(
-            cv2.MORPH_RECT,
-            (config.rect3_kernel_size[0], config.rect3_kernel_size[1]),
+            cv2.MORPH_RECT, (config.rect3_kernel_size[0], config.rect3_kernel_size[1])
         )
         LicensePlateExtractor.rectKern4 = cv2.getStructuringElement(
-            cv2.MORPH_RECT,
-            (config.rect4_kernel_size[0], config.rect4_kernel_size[1]),
+            cv2.MORPH_RECT, (config.rect4_kernel_size[0], config.rect4_kernel_size[1])
         )
         LicensePlateExtractor.squareKern = cv2.getStructuringElement(
-            cv2.MORPH_RECT,
-            (config.square_kernel_size, config.square_kernel_size),
+            cv2.MORPH_RECT, (config.square_kernel_size, config.square_kernel_size)
         )
 
     @staticmethod
@@ -128,6 +133,7 @@ class LicensePlateExtractor:
         image = cv2.imread(image_path)
         if image is None:
             logger.error(f"Could not load image: {image_path}")
+            exit(-1)
         config = LicensePlateExtractor.config
         d = config.bilateral_filter["d"]
         sigmaColor = config.bilateral_filter["sigmaColor"]
@@ -180,16 +186,15 @@ class LicensePlateExtractor:
         """perform a blackhat morphological operation to reveal dark characters (letters, digits, and symbols)
         against light backgrounds (the license plate itself)"""
         blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, rectKern)
-        plot_images(gray_1, blackhat, "gray", "blackhat")
-
+        debug_plot_images(gray_1, blackhat, "gray", "blackhat")
         """ find regions in the image that are light and may contain license plate characters
         find regions in the image that are light and may contain license plate characters """
         light = cv2.morphologyEx(gray_1, cv2.MORPH_CLOSE, squareKern)
 
-        plot_images(gray, light, "gray", "light regions")
+        debug_plot_images(gray, light, "gray", "light regions")
         light = cv2.threshold(light, 0, 255, cv2.THRESH_OTSU + cv2.THRESH_BINARY)[1]
 
-        plot_images(gray, light, "gray", "white in image")
+        debug_plot_images(gray, light, "gray", "white in image")
 
         """ detect edges in the image and emphasize the boundaries of
         the characters in the license plate"""
@@ -201,7 +206,7 @@ class LicensePlateExtractor:
             ksize=LicensePlateExtractor.config.sobel_kernel_size,
         )
         gradX = normalize_edges(gradX)
-        plot_images(gray, gradX, "gray", " x-axis edges")
+        debug_plot_images(gray, gradX, "gray", " x-axis edges")
 
         """smooth to group the regions that may contain boundaries to license plate characters"""
         gradXX = cv2.bitwise_and(gradX, light, mask=light)
@@ -209,18 +214,20 @@ class LicensePlateExtractor:
         gradX = cv2.GaussianBlur(gradX, (9, 9), 2)
 
         gradX = cv2.morphologyEx(gradXX, cv2.MORPH_CLOSE, rectKern2)
-        plot_images(gray, gradX, "gray", "edges closging")
+        debug_plot_images(gray, gradX, "gray", "edges closging")
 
         thresh = cv2.threshold(gradX, 40, 255, cv2.THRESH_BINARY)[1]
 
-        plot_images(gray, thresh, "gray", "thresholded")
+        debug_plot_images(gray, thresh, "gray", "thresholded")
 
         """ there are many other large white regions as well
             perform a series of erosions and dilations in an attempt to denoise
         """
 
         thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, rectKern3)
-        plot_images(gray, thresh, "gray", "thresholded after erode dilate and masking")
+        debug_plot_images(
+            gray, thresh, "gray", "thresholded after erode dilate and masking"
+        )
 
         """
         light image serves as our mask for a bitwise-AND between the thresholded result and
@@ -229,20 +236,22 @@ class LicensePlateExtractor:
         to fill holes and clean up the image
         """
         thresh = cv2.bitwise_and(thresh, thresh, mask=light)
-        plot_images(gray, thresh, "gray", "thresholded after erode dilate and masking")
+        debug_plot_images(
+            gray, thresh, "gray", "thresholded after erode dilate and masking"
+        )
 
         # thresh = cv2.dilate(thresh,cv2.getStructuringElement(cv2.MORPH_DILATE, (7, 6)), iterations=1)
         # thresh = cv2.erode(thresh,cv2.getStructuringElement(cv2.MORPH_RECT, (8, 5)), iterations=1)
         thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, rectKern4)
 
-        plot_images(gray, thresh, "gray", "After anding with light and closing")
+        debug_plot_images(gray, thresh, "gray", "After anding with light and closing")
 
         """
         show me all contours
         """
         all_Contours = draw_contours(thresh.copy(), image.copy())
 
-        plot_images(image, all_Contours, "image", "all contours")
+        debug_plot_images(image, all_Contours, "image", "all contours")
 
         # TODO top K contours as option/config
         contours = get_contours(thresh.copy(), sort_fn=cv2.contourArea, top=20)
@@ -256,7 +265,7 @@ class LicensePlateExtractor:
         )
 
         for candidate, _, _, _ in candidates:
-            plot_images(gray, candidate)
+            debug_plot_images(gray, candidate)
         # Annotate
         annotated_image = image.copy()
         i = 0
@@ -276,7 +285,7 @@ class LicensePlateExtractor:
                 2,
             )
             i += 1
-        # plot_images(image, annotated_image)
+        # debug_plot_images(image, annotated_image)
         return image, candidates, annotated_image
 
     @staticmethod
@@ -319,12 +328,15 @@ class LicensePlateExtractor:
         pass
 
 
-LicensePlateExtractor.load_config()
-
-image, candidates, annotated_image = LicensePlateExtractor.extract_plate(
-    "../data/Vehicles/0643.jpg"
-)
-original_image = cv2.imread("../data/Vehicles/0643.jpg")
-original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
-plot_images(image, annotated_image)
-LicensePlateExtractor.extract_type(original_image, *candidates[0][3])
+if __name__ == "__main__":
+    LicensePlateExtractor.load_config()
+    # Loop on the first 100 images
+    for i in range(281, 282):
+        filename = "../data/Vehicles/{:04d}.jpg".format(i)
+        image, candidates, annotated_image = LicensePlateExtractor.extract_plate(
+            "../data/Vehicles/0643.jpg"
+        )
+        original_image = cv2.imread("../data/Vehicles/0022.jpg")
+        original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+        debug_plot_images(image, annotated_image)
+        LicensePlateExtractor.extract_type(original_image, *candidates[0][3])

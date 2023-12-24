@@ -2,6 +2,9 @@ import os
 
 import cv2
 from matplotlib import pyplot as plt
+import logging
+
+logger = logging.getLogger("logger")
 
 
 def create_directory(path):
@@ -62,6 +65,16 @@ def plot_image(img, title=""):
     plt.title(title)
     plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
     plt.show()
+
+
+def debug_plot_images(img1, img2, title1="Original", title2="Compared"):
+    if logger.getEffectiveLevel() == logging.DEBUG:
+        plot_side_by_side_images(img1, img2, title1, title2)
+
+
+def debug_plot_image(img, title=""):
+    if logger.getEffectiveLevel() == logging.DEBUG:
+        plot_image(img, title)
 
 
 def draw_contours(thresholded, image):

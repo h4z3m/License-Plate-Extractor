@@ -5,10 +5,10 @@
         "sigmaSpace": 80
     },
     "histogram_equalization": {
-        "clipLimit": 2.0,
+        "clipLimit": 2,
         "tileGridSize": [
-            8,
-            8
+            10,
+            10
         ]
     },
     "disk_kernel_radius": 16,
@@ -29,5 +29,6 @@
         5
     ],
     "square_kernel_size": 3,
-    "sobel_kernel_size": 31
+    "sobel_kernel_size": 31,
+    "reference_image_path": "src/image_1.png"
 }
