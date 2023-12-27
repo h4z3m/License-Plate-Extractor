@@ -76,13 +76,13 @@ class LicensePlateExtractor:
     rectKern, rectKern2, rectKern3, rectKern4, squareKern = None, None, None, None, None
     config: LPE_Config = None
     colors = {
-        "Private|ملاكي": (44, 112, 170),
-        "Diplomatic|دبلوماسي": (81, 163, 71),
-        "Taxi|تاكسي": (228, 107, 46),
-        "Customs|جمركي": (247, 192, 75),
-        "Bus|باص": (188, 188, 188),
-        "Transport|نقل": (190, 31, 43),
-        "Commercial|تجاري": (196, 169, 125),
+        "Private": (44, 112, 170),
+        "Diplomatic": (81, 163, 71),
+        "Taxi": (228, 107, 46),
+        "Customs": (247, 192, 75),
+        "Bus": (188, 188, 188),
+        "Transport": (190, 31, 43),
+        "Commercial": (196, 169, 125),
     }
     ocr_engine: OCR = None
 
@@ -291,27 +291,27 @@ class LicensePlateExtractor:
 
         for candidate, _, _, _ in candidates:
             debug_plot_images(gray, candidate)
-        # TODO make this a function to annotate text on image and takes OCR and type
-        annotated_image = image.copy()
-        i = 0
-        for _, dist, _, (box) in candidates:
-            (x, y, w, h) = box
-            annotated_image = cv2.rectangle(
-                annotated_image, (x, y), (x + w, y + h), (0, 255, 0), 2
-            )
-            # Annotate text above rectangle
-            annotated_image = cv2.putText(
-                annotated_image,
-                "Distance: {}, index: {}".format(round(dist, 2), i),
-                (x, y - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,
-                (255, 1, 0),
-                2,
-            )
-            i += 1
-        debug_plot_images(image, annotated_image)
-        return image, candidates, annotated_image
+        # # TODO make this a function to annotate text on image and takes OCR and type
+        # annotated_image = image.copy()
+        # i = 0
+        # for _, dist, _, (box) in candidates:
+        #     (x, y, w, h) = box
+        #     annotated_image = cv2.rectangle(
+        #         annotated_image, (x, y), (x + w, y + h), (0, 255, 0), 2
+        #     )
+        #     # Annotate text above rectangle
+        #     annotated_image = cv2.putText(
+        #         annotated_image,
+        #         "Distance: {}, index: {}".format(round(dist, 2), i),
+        #         (x, y - 10),
+        #         cv2.FONT_HERSHEY_SIMPLEX,
+        #         0.9,
+        #         (255, 1, 0),
+        #         2,
+        #     )
+        #     i += 1
+        #debug_plot_images(image, annotated_image)
+        return image, candidates
 
     @staticmethod
     def extract_type(original_image, x, y, w, h):

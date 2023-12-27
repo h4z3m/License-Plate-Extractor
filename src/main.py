@@ -4,16 +4,17 @@ import datetime
 import json
 import logging
 from typing import Tuple
-
+import arabic_reshaper
+from bidi.algorithm import get_display
 import cv2
 import numpy as np
-
+from PIL import ImageFont, ImageDraw, Image
 import debug_logger.debug_logger as debug_logger
 from csv_logger.csv_logger import setupLogger
 from ocr.ocr import OCR
 from segmentation.segmentation import Segmentation
 from utils.utils import create_directory, debug_plot_image, plot_image
-
+import arabic_reshaper
 
 def main(
     dataset_path: str,
@@ -51,13 +52,60 @@ def main(
                 "Plate_type": type,
             }
         )
-        # TODO Save the annotated image
+        # annotated_image = original_image.copy()
+        # box = candidate[3]
+        # dist = candidate[1]
+        # (x, y, w, h) = box
+        # annotated_image = cv2.rectangle(
+        #     annotated_image, (x, y), (x + w, y + h), (0, 255, 0), 2
+        # )
+        # # Annotate text above rectangle
+        # annotated_image = cv2.putText(
+        #     annotated_image,
+        #     type,
+        #     (x, y - 10),
+        #     cv2.FONT_HERSHEY_SIMPLEX,
+        #     0.9,
+        #     (255, 1, 0),
+        #     2,
+        # )
+        annotated_image = original_image.copy()
+        box = candidate[3]
+        dist = candidate[1]
+        (x, y, w, h) = box
+
+        # Draw rectangle
+        annotated_image = cv2.rectangle(
+            annotated_image, (x, y), (x + w, y + h), (0, 255, 0), 2
+        )
+
+        # Annotate text above rectangle
+        text_position = (x, y - 30)
+        arabic_text = "Type:"+ type + " , " +"Plate: "+ocr_text
+
+        arabic_font_path = 'Almarai-Bold.ttf'
+        font_size = 20 
+        arabic_font = ImageFont.truetype(arabic_font_path, font_size)
+
+        pil_image = Image.fromarray(cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB))
+        draw = ImageDraw.Draw(pil_image)
+
+        # Draw Arabic text on the PIL image
+        draw.text(text_position, arabic_text, font=arabic_font, fill=(0, 0, 0), align='right')
+
+        # Convert the PIL image back to a NumPy array
+        annotated_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+
+        # Save the annotated image
+        ann_path = "annotation"
+        cv2.imwrite(f"{op_path}/{idx:04d}_{sub_idx}_annonated.jpg", annotated_image)
+        
 
     LicensePlateExtractor.load_config(lpe_config_path, pe_config_path, ocr_config_path)
 
     for i in range(*image_range):
         filename = f"{dataset_path}/{i:04d}.jpg"
-        image, candidates, annotated_image = LicensePlateExtractor.extract_plate(
+        image, candidates = LicensePlateExtractor.extract_plate(
             filename
         )
         original_image = cv2.imread(filename)
