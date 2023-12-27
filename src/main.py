@@ -1,62 +1,82 @@
 import argparse
+import csv
 import datetime
 import json
 import logging
+from typing import Tuple
 
 import cv2
 import numpy as np
-import csv
+
 import debug_logger.debug_logger as debug_logger
-from utils.utils import create_directory
+from csv_logger.csv_logger import setupLogger
+from ocr.ocr import OCR
+from segmentation.segmentation import Segmentation
+from utils.utils import create_directory, debug_plot_image, plot_image
 
 
-def main(dataset_path, lpe_config_path, pe_config_path, n, op_path):
+def main(
+    dataset_path: str,
+    lpe_config_path: str,
+    pe_config_path: str,
+    image_range: Tuple[int, int],
+    op_path: str,
+    ocr_config_path: str,
+):
     from license_plate_extractor import LicensePlateExtractor
 
-    with open("output.csv", "w", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
-        field = ["image_name", "plate_type"]
-        writer.writerow(field)
-        LicensePlateExtractor.load_config(lpe_config_path, pe_config_path)
-        # Loop on the first 100 images
-        for i in range(1200, 1301):
-            filename = dataset_path + "/{:04d}.jpg".format(i)
-            image, candidates, annotated_image = LicensePlateExtractor.extract_plate(
-                filename
-            )
-            original_image = cv2.imread(filename)
-            original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
-            # Save images
-            if len(candidates) >= 2:
-                cv2.imwrite(op_path + "/{:04d}_0.jpg".format(i), candidates[0][0])
-                cv2.imwrite(op_path + "/{:04d}_1.jpg".format(i), candidates[1][0])
-                print(*candidates[0][3])
-                print(*candidates[1][3])
-                candidate_1_type = LicensePlateExtractor.extract_type(
-                    original_image, *candidates[0][3]
-                )
-                candidate_2_type = LicensePlateExtractor.extract_type(
-                    original_image, *candidates[1][3]
-                )
-                logger.debug(filename + " " + candidate_1_type)
-                logger.debug(filename + " " + candidate_2_type)
+    # Create a CSV logger with the fieldnames
+    csv_logger = setupLogger(
+        "csv_logger",
+        [
+            "Picture",
+            "Extracted_picture",
+            "OCR_text",
+            "Plate_type",
+        ],
+        f"output_{image_range[0]}_to_{image_range[1]}.csv",
+    )
 
-                writer.writerow([filename, candidate_1_type])
-                writer.writerow([filename, candidate_2_type])
-            elif len(candidates) == 1:
-                cv2.imwrite(op_path + "/{:04d}_0.jpg".format(i), candidates[0][0])
-                candidate_1_type = LicensePlateExtractor.extract_type(
-                    original_image, *candidates[0][3]
-                )
-                logger.debug(filename + " " + candidate_1_type)
-                writer.writerow([filename, candidate_1_type])
+    def save_image_data(idx, sub_idx, op_path, filename, candidate, original_image):
+        cv2.imwrite(f"{op_path}/{idx:04d}_{sub_idx}.jpg", candidate[0])
+        type = LicensePlateExtractor.extract_type(original_image, *candidate[3])
+        debug_plot_image(candidate[0])
+        ocr_text = LicensePlateExtractor.get_plate_number(original_image, candidate[0])
+        csv_logger.info(
+            {
+                "Picture": filename,
+                "Extracted_picture": f"{idx:04d}_{sub_idx}.jpg",
+                "OCR_text": ocr_text,
+                "Plate_type": type,
+            }
+        )
 
-            else:
-                logger.debug("Error: No candidates found for image #{}".format(i))
+    LicensePlateExtractor.load_config(lpe_config_path, pe_config_path, ocr_config_path)
+
+    for i in range(*image_range):
+        filename = f"{dataset_path}/{i:04d}.jpg"
+        image, candidates, annotated_image = LicensePlateExtractor.extract_plate(
+            filename
+        )
+        original_image = cv2.imread(filename)
+        if original_image is None:
+            logger.error(f"Could not load image: {filename}")
+            exit(-1)
+
+        original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+
+        if len(candidates) >= 2:
+            save_image_data(i, 0, op_path, filename, candidates[0], original_image)
+            save_image_data(i, 1, op_path, filename, candidates[1], original_image)
+        elif len(candidates) == 1:
+            save_image_data(i, 0, op_path, filename, candidates[0], original_image)
+        else:
+            logger.error(f"No candidates found for image #{i}")
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
+
     args.add_argument("-d", "--debug", action="store_true")
 
     args.add_argument(
@@ -91,11 +111,19 @@ if __name__ == "__main__":
         help="Path to the output folder",
     )
     args.add_argument(
-        "-n",
-        "--number",
-        default=10,
+        "-r",
+        "--range",
+        default=[1, 10],
         type=int,
-        help="Number of images to process from dataset path",
+        nargs=2,
+        help="Range of images to process from dataset path",
+    )
+
+    args.add_argument(
+        "-oc",
+        "--ocr-config",
+        default="src/config/ocr_config.json",
+        help="Path to OCR config file",
     )
 
     # Extract arguments
@@ -103,10 +131,12 @@ if __name__ == "__main__":
     debug = args.debug
     config = args.log_config
     dataset_path = args.dataset_path
-    n = args.number
+    r = args.range
     lpe_config_path = args.extractor_config
     pe_config_path = args.plate_config
     op_path = args.output_path
+    ocr_config_path = args.ocr_config
+
     # Load json config
     config_json = json.load(open(config, "r"))
     if config_json["save_log_to_file"]:
@@ -115,8 +145,9 @@ if __name__ == "__main__":
         # Create log path
         log_filename = datetime.datetime.now().strftime("%Y-%m-%d %H %M %S") + ".log"
 
+    # Initialize logger
     logger = debug_logger.DebugLogger(
         name="logger", level=logging.DEBUG if debug else logging.ERROR
     )
 
-    main(dataset_path, lpe_config_path, pe_config_path, n, op_path)
+    main(dataset_path, lpe_config_path, pe_config_path, r, op_path, ocr_config_path)
