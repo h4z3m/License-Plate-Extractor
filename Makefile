@@ -4,5 +4,5 @@ run:
 		-pc ./src/config/plate_extraction_config.json\
 		-ec ./src/config/lpe_config.json\
 		-dp ./data/Vehicles\
-		-n 100\
-		-o ./data/output
+		-r  1100 1201\
+		-o ./data/output\
