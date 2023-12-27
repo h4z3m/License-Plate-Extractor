@@ -1,30 +1,8 @@
 import cv2
-from matplotlib import pyplot as plt
 import numpy as np
 import skimage.io as io
+from matplotlib import pyplot as plt
 from skimage import filters
-
-from skimage.segmentation import clear_border
-
-from utils.utils import debug_plot_image
-
-
-def plot_image(img, title=""):
-    """
-    Plots an image using matplotlib.
-
-    Parameters:
-        img (numpy.ndarray): The image to be plotted.
-        title (str, optional): The title of the plot. Defaults to an empty string.
-
-    Returns:
-        None
-    """
-    plt.figure(figsize=[7, 7])
-    plt.imshow(img, cmap="gray")
-    plt.title(title)
-    plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
-    plt.show()
 
 
 class Segmentation:
@@ -106,7 +84,6 @@ class Segmentation:
 
         thresholded_image = otsu_thresholded
 
-        debug_plot_image(gradient, "gradient")
         # plt.figure()
         # plt.imshow(gradient, cmap="gray")
 

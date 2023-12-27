@@ -1,19 +1,15 @@
-import cv2
 import os
-import skimage.io as io
-from sklearn.neighbors import KNeighborsClassifier
-from skimage.feature import hog
-from sklearn import metrics
-import matplotlib.pyplot as plt
-import cv2
-from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
-
-# from preprocessing import gray_image, HistogramEqualization
-from scipy.io import loadmat
-from skimage import filters
-import numpy as np
 import pickle
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import skimage.io as io
+from skimage import filters
+from skimage.feature import hog
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 
 
 class OCR:
@@ -24,6 +20,15 @@ class OCR:
     classifier = None
 
     def load_dataset(self, training_directory):
+        """
+        Load the dataset from the given training directory.
+
+        Parameters:
+            training_directory (str): The path to the directory containing the training images.
+
+        Returns:
+            None
+        """
         self.training_dataset_labels = []
         self.training_dataset = []
 
@@ -66,10 +71,28 @@ class OCR:
                 self.training_dataset.append(feature_vector)
 
     def extract_label_from_filename(self, filename):
+        """
+        Extracts the label from a given filename.
+
+        Parameters:
+        - `filename` (str): The name of the file from which to extract the label.
+
+        Returns:
+        - `str`: The extracted label.
+        """
         part = filename.split("-")[1]
         return part
 
     def train(self, mode: str):
+        """
+        Train the classifier using the specified mode.
+
+        Parameters:
+            mode (str): The mode for training the classifier. Valid options are "knn", "svm", or "rf".
+
+        Returns:
+            None
+        """
         if mode == "knn":
             self.classifier = KNeighborsClassifier(n_neighbors=5000)
         elif mode == "svm":
@@ -82,6 +105,15 @@ class OCR:
         self.classifier.fit(self.training_dataset, self.training_dataset_labels)
 
     def save_trained_model(self, pickle_file_path="trained_model.pk1"):
+        """
+        Saves the trained model to a pickle file.
+
+        Parameters:
+            pickle_file_path (str): The path to the pickle file. Defaults to "trained_model.pk1".
+
+        Returns:
+            None
+        """
         # delete file contents in trained_model.pk1
         open(pickle_file_path, "w").close()
 
@@ -90,11 +122,30 @@ class OCR:
             pickle.dump(self.classifier, file)
 
     def load_trained_model(self, pickle_file_path="trained_model.pk1"):
+        """
+        Load a trained model from a pickle file.
+
+        Parameters:
+            pickle_file_path (str): The path to the pickle file containing the trained model.
+                                   Default is "trained_model.pk1".
+
+        Returns:
+            None
+        """
         # load the model from disk
         with open(pickle_file_path, "rb") as file:
             self.classifier = pickle.load(file)
 
     def predict(self, img_to_predict):
+        """
+        Generates a prediction for the given image.
+
+        Parameters:
+            img_to_predict (numpy.ndarray): The image to be predicted.
+
+        Returns:
+            numpy.ndarray: The predicted class label for the image.
+        """
         resized_img = cv2.resize(img_to_predict, (16, 32))
 
         feature_vector = hog(

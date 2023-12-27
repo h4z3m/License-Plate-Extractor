@@ -19,6 +19,8 @@ from preprocessing.preprocessing import normalize_edges
 from segmentation.segmentation import Segmentation
 from utils.utils import draw_contours
 from utils.utils import debug_plot_images
+import arabic_reshaper
+from PIL import ImageFont, ImageDraw, Image
 
 logger = DebugLogger(name="logger")
 
@@ -310,7 +312,7 @@ class LicensePlateExtractor:
         #         2,
         #     )
         #     i += 1
-        #debug_plot_images(image, annotated_image)
+        # debug_plot_images(image, annotated_image)
         return image, candidates
 
     @staticmethod
@@ -350,6 +352,38 @@ class LicensePlateExtractor:
         for char_roi in characters_roi:
             plate_number += str(LicensePlateExtractor.ocr_engine.predict(char_roi)[0])
         return plate_number
+
+    @staticmethod
+    def annotate_image(candidate, original_image, type, ocr_text):
+        annotated_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+        box = candidate[3]
+        dist = candidate[1]
+        (x, y, w, h) = box
+
+        # Draw rectangle
+        annotated_image = cv2.rectangle(
+            annotated_image, (x, y), (x + w, y + h), (0, 255, 0), 2
+        )
+
+        # Annotate text above rectangle
+        text_position = (x, y - 30)
+        arabic_text = "Type:" + type + " , " + "Plate: " + ocr_text
+
+        arabic_font_path = "./Almarai-Bold.ttf"
+        font_size = 20
+        arabic_font = ImageFont.truetype(arabic_font_path, font_size)
+
+        pil_image = Image.fromarray(cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB))
+        draw = ImageDraw.Draw(pil_image)
+
+        # Draw Arabic text on the PIL image
+        draw.text(
+            text_position, arabic_text, font=arabic_font, fill=(0, 255, 0), align="right"
+        )
+
+        # Convert the PIL image back to a NumPy array
+        annotated_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+        return annotated_image
 
     @staticmethod
     def get_plate_region(image):
