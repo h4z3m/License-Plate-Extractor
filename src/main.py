@@ -187,6 +187,9 @@ if __name__ == "__main__":
     op_path = args.output_path
     ocr_config_path = args.ocr_config
 
+    create_directory(op_path)  # Create output path if it does not exist
+    create_directory(op_path + "/annotated")
+
     # Load json config
     config_json = json.load(open(config, "r"))
     if config_json["save_log_to_file"]:
