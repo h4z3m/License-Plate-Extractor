@@ -59,4 +59,5 @@ def setupLogger(
     csv_logger = logging.getLogger(logger_name)
     csv_logger.setLevel(logging.DEBUG)
     csv_logger.addHandler(csv_handler)
+
     return csv_logger

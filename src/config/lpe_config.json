@@ -30,5 +30,5 @@
     ],
     "square_kernel_size": 3,
     "sobel_kernel_size": 31,
-    "reference_image_path": "src/image_1.png"
+    "reference_image_path": "./src/image_1.png"
 }
