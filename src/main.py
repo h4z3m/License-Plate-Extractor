@@ -42,6 +42,7 @@ def main(
         type = LicensePlateExtractor.extract_type(original_image, *candidate[3])
         debug_plot_image(candidate[0])
         ocr_text = LicensePlateExtractor.get_plate_number(original_image, candidate[0])
+        # TODO annotate here
         csv_logger.info(
             {
                 "Picture": filename,
@@ -50,6 +51,7 @@ def main(
                 "Plate_type": type,
             }
         )
+        # TODO Save the annotated image
 
     LicensePlateExtractor.load_config(lpe_config_path, pe_config_path, ocr_config_path)
 
