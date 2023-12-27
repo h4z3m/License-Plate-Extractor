@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 from debug_logger.debug_logger import DebugLogger
+from ocr.ocr import OCR
 from plate_extraction.plate_extraction import (
     area_AR_get_candidate_contours,
     area_binary_thresh_get_candidate_contours,
@@ -15,6 +16,7 @@ from plate_extraction.plate_extraction import (
     load_plate_extraction_config,
 )
 from preprocessing.preprocessing import normalize_edges
+from segmentation.segmentation import Segmentation
 from utils.utils import draw_contours
 from utils.utils import debug_plot_images
 
@@ -82,11 +84,13 @@ class LicensePlateExtractor:
         "Transport|نقل": (190, 31, 43),
         "Commercial|تجاري": (196, 169, 125),
     }
+    ocr_engine: OCR = None
 
     @staticmethod
     def load_config(
         config_path="./config/lpe_config.json",
         pe_config_path="./config/plate_extraction_config.json",
+        ocr_config_path="./config/ocr_config.json",
     ):
         """
         Load the configuration file and initialize the LicensePlateExtractor class.
@@ -100,6 +104,12 @@ class LicensePlateExtractor:
         reference_gray = cv2.resize(reference_gray, (128, 128))
         hog = cv2.HOGDescriptor()
         LicensePlateExtractor.reference_features = hog.compute(reference_gray)
+        with open(ocr_config_path) as config_file:
+            config_data = json.load(config_file)
+            LicensePlateExtractor.ocr_engine = OCR()
+            LicensePlateExtractor.ocr_engine.load_trained_model(
+                config_data["ocr_model_path"]
+            )
 
     @staticmethod
     def __read_config(path):
@@ -281,7 +291,7 @@ class LicensePlateExtractor:
 
         for candidate, _, _, _ in candidates:
             debug_plot_images(gray, candidate)
-        # Annotate
+        # TODO make this a function to annotate text on image and takes OCR and type
         annotated_image = image.copy()
         i = 0
         for _, dist, _, (box) in candidates:
@@ -300,7 +310,7 @@ class LicensePlateExtractor:
                 2,
             )
             i += 1
-        # debug_plot_images(image, annotated_image)
+        debug_plot_images(image, annotated_image)
         return image, candidates, annotated_image
 
     @staticmethod
@@ -333,9 +343,13 @@ class LicensePlateExtractor:
         return closest_name
 
     @staticmethod
-    def get_plate_number(image):
-        # TODO get plate number
-        pass
+    def get_plate_number(original, roi):
+        characters_roi = Segmentation.segment_image(original, roi)
+        logger.debug(f"Characters ROI length: {len(characters_roi)}")
+        plate_number = ""
+        for char_roi in characters_roi:
+            plate_number += str(LicensePlateExtractor.ocr_engine.predict(char_roi)[0])
+        return plate_number
 
     @staticmethod
     def get_plate_region(image):
